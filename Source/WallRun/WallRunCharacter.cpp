@@ -112,7 +112,18 @@ void AWallRunCharacter::OnPlayerCapsuleHit(UPrimitiveComponent* HitComponent, AA
 		return;
 	}
 
-	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, TEXT("Capsule hit!"));
+	EWallRunSide Side = EWallRunSide::None;
+
+	if (FVector::DotProduct(HitNormal, GetActorRightVector()) > 0)
+	{
+		Side = EWallRunSide::Left;
+		GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, TEXT("Capsule hit! Side LEFT"));
+	}
+	else
+	{
+		Side = EWallRunSide::Right;
+		GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Blue, TEXT("Capsule hit!  Side RIGHT"));
+	}	
 }
 
 bool AWallRunCharacter::IsSurfaceWallRunable(const FVector& SurfaceNormal)

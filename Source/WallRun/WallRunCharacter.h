@@ -8,6 +8,14 @@
 
 class UInputComponent;
 
+UENUM()
+enum class EWallRunSide : uint8
+{
+	None,
+	Left,
+	Right
+};
+
 UCLASS(config=Game)
 class AWallRunCharacter : public ACharacter
 {
