@@ -11,6 +11,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "MotionControllerComponent.h"
 #include "XRMotionControllerBase.h" // for FXRMotionControllerBase::RightHandSourceId
+#include "GameFramework/CharacterMovementComponent.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFPChar, Warning, All);
 
@@ -70,6 +71,8 @@ void AWallRunCharacter::BeginPlay()
 
 	// Show or hide the two versions of the gun based on whether or not we're using motion controllers.
 	Mesh1P->SetHiddenInGame(false, true);
+
+	GetCapsuleComponent()->OnComponentHit.AddDynamic(this, &AWallRunCharacter::OnPlayerCapsuleHit);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -98,6 +101,44 @@ void AWallRunCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerI
 	PlayerInputComponent->BindAxis("TurnRate", this, &AWallRunCharacter::TurnAtRate);
 	PlayerInputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 	PlayerInputComponent->BindAxis("LookUpRate", this, &AWallRunCharacter::LookUpAtRate);
+}
+
+void AWallRunCharacter::OnPlayerCapsuleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit)
+{
+	FVector HitNormal = Hit.ImpactNormal;
+
+	if (!IsSurfaceWallRunable(HitNormal))
+	{
+		return;
+	}
+
+	EWallRunSide Side = EWallRunSide::None;
+
+	if (FVector::DotProduct(HitNormal, GetActorRightVector()) > 0)
+	{
+		Side = EWallRunSide::Left;
+		GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, TEXT("Capsule hit! Side LEFT"));
+	}
+	else
+	{
+		Side = EWallRunSide::Right;
+		GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Blue, TEXT("Capsule hit!  Side RIGHT"));
+	}	
+}
+
+bool AWallRunCharacter::IsSurfaceWallRunable(const FVector& SurfaceNormal)
+{
+	// float SlopeCosine = FVector::DotProduct(FVector::UpVector, SurfaceNormal); // HitNormal.Z
+	// float SlopeAngle = FMath::RadiansToDegrees(FMath::Acos(SlopeCosine));
+	// float MaxSlopeAngle = GetCharacterMovement()->GetWalkableFloorAngle();
+	// if (SlopeAngle < MaxSlopeAngle) return
+
+	if (SurfaceNormal.Z > GetCharacterMovement()->GetWalkableFloorZ() || SurfaceNormal.Z < 0.005f)
+	{
+		return false;
+	}
+
+	return true;
 }
 
 void AWallRunCharacter::OnFire()
