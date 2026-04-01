@@ -73,6 +73,7 @@ void AWallRunCharacter::BeginPlay()
 	Mesh1P->SetHiddenInGame(false, true);
 
 	GetCapsuleComponent()->OnComponentHit.AddDynamic(this, &AWallRunCharacter::OnPlayerCapsuleHit);
+	GetCharacterMovement()->SetPlaneConstraintEnabled(true);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -107,23 +108,43 @@ void AWallRunCharacter::OnPlayerCapsuleHit(UPrimitiveComponent* HitComponent, AA
 {
 	FVector HitNormal = Hit.ImpactNormal;
 
+	if (bIsWallRunning)
+	{
+		return;
+	}
+
 	if (!IsSurfaceWallRunable(HitNormal))
 	{
 		return;
 	}
 
+	if (!GetCharacterMovement()->IsFalling())
+	{
+		return;
+	}
+
 	EWallRunSide Side = EWallRunSide::None;
+	FVector Direction = FVector::ZeroVector;
 
 	if (FVector::DotProduct(HitNormal, GetActorRightVector()) > 0)
 	{
 		Side = EWallRunSide::Left;
+		Direction = FVector::CrossProduct(HitNormal, FVector::UpVector).GetSafeNormal();
 		GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, TEXT("Capsule hit! Side LEFT"));
 	}
 	else
 	{
 		Side = EWallRunSide::Right;
+		Direction = FVector::CrossProduct(FVector::DownVector, HitNormal).GetSafeNormal();
 		GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Blue, TEXT("Capsule hit!  Side RIGHT"));
-	}	
+	}
+
+	if (!AreRequiredKeysDown(Side))
+	{
+		return;
+	}
+
+	StartWallRun(Side, Direction);
 }
 
 bool AWallRunCharacter::IsSurfaceWallRunable(const FVector& SurfaceNormal)
@@ -139,6 +160,56 @@ bool AWallRunCharacter::IsSurfaceWallRunable(const FVector& SurfaceNormal)
 	}
 
 	return true;
+}
+
+bool AWallRunCharacter::AreRequiredKeysDown(EWallRunSide Side)
+{
+	if (ForwardAxis < 0.1f)
+	{
+		return false;
+	}
+
+	if (Side == EWallRunSide::Right && RightAxis < -0.1f)
+	{
+		return false;
+	}
+
+	if (Side == EWallRunSide::Left && RightAxis > 0.1f)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void AWallRunCharacter::StartWallRun(EWallRunSide Side, const FVector& Direction)
+{
+	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Purple, TEXT("Wallrun started"));
+
+	bIsWallRunning = true;
+	
+	CurrentRunSide = Side;
+	CurrentWallDirection = Direction;
+
+	GetCharacterMovement()->SetPlaneConstraintNormal(FVector::UpVector);
+
+	GetWorld()->GetTimerManager().SetTimer(WallRunTimer, this, &AWallRunCharacter::StopWallRun, MaxWallRunTime, false);
+}
+
+void AWallRunCharacter::StopWallRun()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Purple, TEXT("Wallrun stopped"));
+
+	bIsWallRunning = false;
+
+	CurrentRunSide = EWallRunSide::None;
+	CurrentWallDirection = FVector::ZeroVector;
+
+	GetCharacterMovement()->SetPlaneConstraintNormal(FVector::ZeroVector);
+}
+
+void AWallRunCharacter::UpdateWallRun()
+{
 }
 
 void AWallRunCharacter::OnFire()
@@ -182,6 +253,7 @@ void AWallRunCharacter::OnFire()
 
 void AWallRunCharacter::MoveForward(float Value)
 {
+	ForwardAxis = Value;
 	if (Value != 0.0f)
 	{
 		// add movement in that direction
@@ -191,6 +263,7 @@ void AWallRunCharacter::MoveForward(float Value)
 
 void AWallRunCharacter::MoveRight(float Value)
 {
+	RightAxis = Value;
 	if (Value != 0.0f)
 	{
 		// add movement in that direction

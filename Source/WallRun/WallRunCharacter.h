@@ -91,6 +91,9 @@ protected:
 	 */
 	void LookUpAtRate(float Rate);
 	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "WallRun", meta = (UIMin = 0.0f, ClampMin = 0.0f))
+	float MaxWallRunTime = 1.0f;
+
 protected:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(UInputComponent* InputComponent) override;
@@ -107,4 +110,18 @@ private:
 	void OnPlayerCapsuleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	bool IsSurfaceWallRunable(const FVector& SurfaceNormal);
+	bool AreRequiredKeysDown(EWallRunSide Side);
+
+	float ForwardAxis = 0.0f;
+	float RightAxis = 0.0f;
+
+	void StartWallRun(EWallRunSide Side, const FVector& Direction);
+	void StopWallRun();
+	void UpdateWallRun();
+
+	bool bIsWallRunning = false;
+	EWallRunSide CurrentRunSide = EWallRunSide::None;
+	FVector CurrentWallDirection = FVector::ZeroVector;
+
+	FTimerHandle WallRunTimer;
 };
